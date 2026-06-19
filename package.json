@@ -1,6 +1,6 @@
 {
   "name": "bar-card",
-  "version": "4.0.9",
+  "version": "5.0.0",
   "description": "Lovelace bar-card, forked of 'custom_cards/bar-card'",
   "keywords": [
     "home-assistant",

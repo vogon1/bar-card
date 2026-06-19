@@ -4,10 +4,17 @@ import { BarCardConfig } from './types';
 import { localize } from './localize/localize';
 import { mergeDeep, hasConfigOrEntitiesChanged, createConfigArray, getMaxMinBasedOnType } from './helpers';
 import { styles } from './styles';
+import { CARD_VERSION } from './const';
 import { LovelaceCardEditor, HomeAssistant, domainIcon, computeDomain, handleAction } from 'custom-card-helpers';
 import { LitElement, PropertyValues, html, TemplateResult } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { actionHandler } from './action-handler-directive';
+
+console.info(
+  `%c BAR-CARD %c v${CARD_VERSION} `,
+  'color: white; font-weight: bold; background: dimgray;',
+  'color: dimgray; font-weight: bold; background: white;',
+);
 
 interface Section {
   text: string
@@ -106,7 +113,7 @@ export class BarCard extends LitElement {
         <div
           id="states"
           class="card-content"
-          style="${this._config.entity_row ? 'padding: 0px;' : ''} ${this._config.direction == 'up'
+          style="${this._config.entity_row ? 'padding: 0px;' : ''} ${['up', 'up-reverse', 'down', 'down-reverse'].includes(this._config.direction)
         ? ''
         : 'flex-grow: 0;'}"
         >
@@ -192,7 +199,14 @@ export class BarCard extends LitElement {
         const defaultHeight = Math.round(this._getLineHeightPx() * 2);
         const barHeight: string | number = config.height ?? defaultHeight;
 
-        // Set style variables based on direction.
+        // Set style variables based on direction. The "-reverse" variants
+        // keep their base axis's layout (flexDirection/backgroundMargin/
+        // marker orientation) and rely solely on _computePercent() inverting
+        // the fill percentage — they must NOT fall through to the
+        // pre-switch ('right') defaults below, or they render with the
+        // wrong layout while still showing an inverted (and now meaningless)
+        // percentage.
+        const isVertical = ['up', 'up-reverse', 'down', 'down-reverse'].includes(config.direction);
         let alignItems = 'stretch';
         let backgroundMargin = '0px 0px 0px 13px';
         let barDirection = 'right';
@@ -202,14 +216,29 @@ export class BarCard extends LitElement {
 
         switch (config.direction) {
           case 'right':
+          case 'right-reverse':
             barDirection = 'right';
             markerDirection = 'left';
             break
+          case 'left':
+          case 'left-reverse':
+            barDirection = 'left';
+            markerDirection = 'right';
+            break
           case 'up':
+          case 'up-reverse':
             backgroundMargin = '0px';
             barDirection = 'top';
             flexDirection = 'column-reverse';
             markerDirection = 'bottom';
+            markerStyle = 'height: 2px; width: 100%;';
+            break
+          case 'down':
+          case 'down-reverse':
+            backgroundMargin = '0px';
+            barDirection = 'bottom';
+            flexDirection = 'column';
+            markerDirection = 'top';
             markerStyle = 'height: 2px; width: 100%;';
             break
         }
@@ -259,7 +288,7 @@ export class BarCard extends LitElement {
             nameOutside = html`
               <bar-card-name
                 class="${config.entity_row ? 'name-outside' : ''}"
-                style="${config.direction == 'up' ? '' : config.width ? `width: calc(100% - ${config.width});` : ''}"
+                style="${isVertical ? '' : config.width ? `width: calc(100% - ${config.width});` : ''}"
                 >${name}</bar-card-name
               >
             `;
@@ -299,7 +328,7 @@ export class BarCard extends LitElement {
             break
           case 'inside':
             minMaxInside = html`
-              <bar-card-min class="${config.direction == 'up' ? 'min-direction-up' : 'min-direction-right'}"
+              <bar-card-min class="${isVertical ? 'min-direction-up' : 'min-direction-right'}"
                 >${min}${unitOfMeasurement}</bar-card-min
               >
               <bar-card-divider>/</bar-card-divider>
@@ -316,7 +345,7 @@ export class BarCard extends LitElement {
         switch (config.positions.value) {
           case 'outside':
             valueOutside = html`
-              <bar-card-value class="${config.direction == 'up' ? 'value-direction-up' : 'value-direction-right'}"
+              <bar-card-value class="${isVertical ? 'value-direction-up' : 'value-direction-right'}"
                 >${config.complementary ? max - entityState : entityState} ${unitOfMeasurement}</bar-card-value
               >
             `;
@@ -392,11 +421,14 @@ export class BarCard extends LitElement {
           targetEndPercent = barPercent;
         }
 
-        // Set bar width if configured.
+        // Set bar width if configured. bar-card-background has flex-grow: 1
+        // (see styles.ts) so it normally stretches to fill the row — that
+        // would silently override an explicit width, so pin it with
+        // flex-grow: 0 whenever a width is configured.
         let barWidth = '';
         if (config.width) {
           alignItems = 'center';
-          barWidth = `width: ${config.width}`;
+          barWidth = `width: ${config.width}; flex-grow: 0;`;
         }
 
         // Set animation state inside array.

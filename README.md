@@ -1,8 +1,17 @@
 # Bar Card
 
-This is a fork from [custom-cards/bar-card](https://github.com/custom-cards/bar-card) because it was not maintained.
+This is a fork of a fork: [custom-cards/bar-card](https://github.com/custom-cards/bar-card) was forked by [spacerokk/bar-card](https://github.com/spacerokk/bar-card), and this repository is a fork of that.
+
+If my version works well, I am willing to maintian this for HACS.
 
 ---
+
+## What's new in 5.0.0
+
+- **Visual editor:** drag-and-drop entity reordering, a native entity picker, a color picker for severity rules, and hints showing which fields are inherited from the global Appearance settings vs. overridden per entity.
+- **Compatibility:** removed the last dependencies on deprecated Paper/MWC components so the editor keeps working on current Home Assistant frontends, and the card now appears in HA's "suggested cards" picker for numeric sensors (HA 2026.6+).
+- **Bugfix:** `direction: left`/`down` and all `-reverse` variants previously rendered as if `direction: right` was set. They now render correctly.
+- **Bugfix:** `width` previously had no visible effect due to a layout bug. It now actually shrinks the bar as documented.
 
 ## [Examples](#examples-1)
 
@@ -26,15 +35,16 @@ This is a fork from [custom-cards/bar-card](https://github.com/custom-cards/bar-
 | entity | string | **Required** | Entity State
 | animation | object | none | Defines animation options. See [Animation Options](#animation-options).
 | attribute | string | none | Displays a specific attribute instead of state value.
-| color | string | var(--custom-bar-card-color, var(--primary-color)) | Color of the bar.
+| color | string | var(--bar-card-color, var(--primary-color)) | Color of the bar.
 | columns | number | none | Defines the amount of bars to be displayed on a single row when multiple entities are defined.
 | complementary | boolean | false | Displays complementary value (max - state_value) instead state value.
 | decimal | number | none | The amount of decimals to be displayed for the value.
-| direction | string | right | Direction of the bar. `right`, `up`
+| direction | string | right | Direction of the bar. `right`, `left`, `up`, `down`, or a `-reverse` variant of any of those (e.g. `right-reverse`) to invert the fill (starts full, depletes as the value rises).
+| double_tap_action | object | none | See [home assistant documentation](https://www.home-assistant.io/lovelace/actions/). *(YAML only, not yet available in the visual editor.)*
 | entities | array | none | A list of entities. Accepts individual config options per defined entity.
-| entity_config | boolean | false | Sets the card to use the configured entity attributes as the card config.
 | entity_row | boolean | false | Removes the background card for use inside entities card.
 | height | string | 40px | Defines the height of the bar.
+| hold_action | object | none | See [home assistant documentation](https://www.home-assistant.io/lovelace/actions/). *(YAML only, not yet available in the visual editor.)*
 | icon | string | icon | Defines the icon to be displayed.
 | limit_value | boolean | false | Limits value displayed to `min` and `max` value.
 | max | number or string | 100 | Defines maximum value of the bar using a number or a entity.
@@ -42,7 +52,8 @@ This is a fork from [custom-cards/bar-card](https://github.com/custom-cards/bar-
 | name | string | none | Defines custom entity name.
 | positions | object | none | Defines the positions of the card elements. See [Positions Options](#positions-options).
 | severity | object | none | A list of severity values. See [Severity Options](#severity-options).
-| tap_action | object | none | See [home assistant documentation](https://www.home-assistant.io/lovelace/actions/).
+| stack | string | none | Set to `horizontal` to lay entities out in a single row instead of stacked columns. *(YAML only, not yet available in the visual editor.)*
+| tap_action | object | none | See [home assistant documentation](https://www.home-assistant.io/lovelace/actions/). *(YAML only, not yet available in the visual editor.)*
 | target | number | none | Defines and enables target marker value.
 | title | string | none | Adds title header to the card.
 | unit_of_measurement | string | attribute | Defines the unit of measurement to be displayed.
@@ -90,6 +101,7 @@ See [example](#200-default-layout-requires-card-mod). (**requires** [card-mod](h
 | Name | Description
 | ---- | ----
 | #states | HA states containing all rows.
+| bar-card-row | A row of bars, grouped according to `columns`/`stack`.
 | bar-card-card | The root bar of each defined entity containing all elements.
 | bar-card-background | Contains bar and any elements `outside` of the bar.
 | bar-card-backgroundbar | The background of the bar.
@@ -109,16 +121,19 @@ See [example](#200-default-layout-requires-card-mod). (**requires** [card-mod](h
 
 ## Installation
 
-Prefered method of installation is [Home Assistant Community Store](https://github.com/hacs/integration).
+This fork is not (yet) distributed via [HACS](https://github.com/hacs/integration). I'm offering it as a manual install for now; if it proves to work well, I plan to submit it to HACS.
 
-When installing via HACS, make sure you select **Dashboard** as the installation type.
+1. Download `bar-card.js` from the [latest release](../../releases/latest) of this repository.
+2. Copy it into your Home Assistant `config/www/` folder.
+3. Add it as a Lovelace resource, loaded as a `module` (**required**), either via the UI or YAML. Append the version number to the URL as a `?v=` query parameter — browsers cache JavaScript modules aggressively, so this must be bumped on every release you install, or Home Assistant may keep serving the old cached version.
 
-It's **required** to load this card as `module`.
+   - **UI:** go to **Settings** → **Dashboards**, open the three-dot menu in the top right → **Resources** → **Add Resource**. Set the URL to `/local/bar-card.js?v=5.0.0` and the resource type to **JavaScript Module**.
+   - **YAML:**
 
-```yaml
-- url: /hacsfiles/bar-card/bar-card.js
-  type: module
-```
+     ```yaml
+     - url: /local/bar-card.js?v=5.0.0
+       type: module
+     ```
 
 ## Examples
 
@@ -253,6 +268,8 @@ type: 'custom:bar-card'
 ```
 
 ## Credits
+
+Forked from [spacerokk/bar-card](https://github.com/spacerokk/bar-card), itself a fork of the original [custom-cards/bar-card](https://github.com/custom-cards/bar-card).
 
 Inspired by [Big Number Card](https://github.com/ciotlosm/custom-lovelace/tree/master/bignumber-card) by [ciotlosm](https://github.com/ciotlosm).
 

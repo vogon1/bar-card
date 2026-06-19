@@ -2,7 +2,6 @@
 import { ActionConfig } from 'custom-card-helpers'
 
 export interface BarCardConfig {
-  entity_config: boolean
   animation: any
   attribute: any
   color: string
