@@ -14,6 +14,7 @@ export interface BarCardConfig {
   entity_row: boolean
   entity: string
   height: string | number
+  history: any
   hold_action?: ActionConfig
   icon: any
   limit_value: boolean

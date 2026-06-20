@@ -44,6 +44,7 @@ If my version works well, I am willing to maintian this for HACS.
 | entities | array | none | A list of entities. Accepts individual config options per defined entity.
 | entity_row | boolean | false | Removes the background card for use inside entities card.
 | height | string | 40px | Defines the height of the bar.
+| history | object | none | Derives the bar value from entity history instead of live state. Card-level sets a default for all entities; per-entity overrides it. See [History Options](#history-options).
 | hold_action | object | none | See [home assistant documentation](https://www.home-assistant.io/lovelace/actions/). *(YAML only, not yet available in the visual editor.)*
 | icon | string | icon | Defines the icon to be displayed.
 | limit_value | boolean | false | Limits value displayed to `min` and `max` value.
@@ -85,6 +86,12 @@ If my version works well, I am willing to maintian this for HACS.
 | name | string | inside | `inside`, `outside`, `off`
 | minmax | string | off | `inside`, `outside`, `off`
 | value | string | inside | `inside`, `outside`, `off`
+
+## History Options
+
+| Name | Type | Default | Description
+| ---- | ---- | ------- | -----------
+| period | string | none | `today`, `yesterday`, `last_7d`, `last_30d`, `this_month`, `last_month`, `last_12_months`, `this_year`, `last_year`. Replaces the bar's value with the entity's change over that period, computed from Home Assistant's long-term statistics (the same data source as the Energy dashboard). Requires the entity to have statistics (e.g. a sensor with `state_class: total_increasing`); plain `input_number`/non-statistics entities default to 0. Refreshed on load/config change only, not polled.
 
 ## Theme Variables
 
@@ -200,6 +207,24 @@ direction: up
 height: 200px
 stack: horizontal
 type: 'custom:bar-card'
+```
+
+### History
+
+Card-level `history` sets a default period for every entity; a per-entity `history` overrides it, just like `severity` or `animation`.
+
+```yaml
+title: Energy used last month
+type: 'custom:bar-card'
+max: 100
+history:
+  period: last_month
+entities:
+  - sensor.energy_total
+  - sensor.energy_kitchen
+  - entity: sensor.energy_today
+    history:
+      period: today
 ```
 
 ### 2.0.0 Default Layout (**requires** [card-mod](https://github.com/thomasloven/lovelace-card-mod))

@@ -25,6 +25,64 @@ interface Section {
   hide: boolean
 }
 
+interface StatisticValue {
+  change?: number
+}
+
+// Resolves a `history.period` preset to a [start, end) range and the
+// statistics bucket granularity to request. Ranges are computed in local
+// time deliberately ("this month" is a local-time concept, not UTC).
+function resolvePeriodRange(period: string): { start: Date; end: Date; bucket: 'day' | 'month' } {
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+  const startOfYear = (d: Date) => new Date(d.getFullYear(), 0, 1);
+
+  switch (period) {
+    case 'yesterday': {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return { start: startOfDay(yesterday), end: startOfDay(now), bucket: 'day' };
+    }
+    case 'last_7d': {
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return { start: startOfDay(sevenDaysAgo), end: now, bucket: 'day' };
+    }
+    case 'last_30d': {
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return { start: startOfDay(thirtyDaysAgo), end: now, bucket: 'day' };
+    }
+    case 'this_month':
+      return { start: startOfMonth(now), end: now, bucket: 'month' };
+    case 'last_month': {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return { start: startOfMonth(lastMonth), end: startOfMonth(now), bucket: 'month' };
+    }
+    // HA's statistics_during_period has no 'year' bucket — request 'month'
+    // buckets spanning the year instead; _fetchHistoryValues() already sums
+    // 'change' across however many buckets come back, so this aggregates
+    // correctly with no extra handling.
+    case 'this_year':
+      return { start: startOfYear(now), end: now, bucket: 'month' };
+    case 'last_year': {
+      const lastYear = new Date(now.getFullYear() - 1, 0, 1);
+      return { start: startOfYear(lastYear), end: startOfYear(now), bucket: 'month' };
+    }
+    // Rolling 12-month window (like last_7d/last_30d, but month-grained),
+    // including the current partial month — distinct from last_year, which
+    // is the previous full calendar year.
+    case 'last_12_months': {
+      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      return { start: twelveMonthsAgo, end: now, bucket: 'month' };
+    }
+    case 'today':
+    default:
+      return { start: startOfDay(now), end: now, bucket: 'day' };
+  }
+}
+
 @customElement('bar-card')
 export class BarCard extends LitElement {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
@@ -41,6 +99,7 @@ export class BarCard extends LitElement {
   private _stateArray: string[] = [];
   private _animationState: string[] = [];
   private _indicatorToggle: boolean[] = [];
+  private _historyValues: (number | undefined)[] = [];
   private _rowAmount = 1;
 
   protected shouldUpdate(changedProps: PropertyValues): boolean {
@@ -77,6 +136,49 @@ export class BarCard extends LitElement {
     if (this._config.stack == 'horizontal') this._config.columns = this._config.entities.length;
     this._configArray = createConfigArray(this._config);
     this._rowAmount = this._configArray.length / this._config.columns;
+    this._fetchHistoryValues();
+  }
+
+  // Resolves any per-entity `history.period` values via long-term statistics.
+  // Fire-and-forget: setConfig() must stay synchronous (LovelaceCard
+  // contract), so results land later via requestUpdate(). _historyValues is
+  // only ever overwritten on success, never reset, so an unrelated re-render
+  // doesn't flicker a resolved value back to "loading".
+  private _fetchHistoryValues(): void {
+    if (!this._hass) return;
+
+    this._configArray.forEach((config, index) => {
+      const period = config.history?.period;
+      if (!period) return;
+
+      const { start, end, bucket } = resolvePeriodRange(period);
+      this._hass!.callWS<Record<string, StatisticValue[]>>({
+        type: 'recorder/statistics_during_period',
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        statistic_ids: [config.entity],
+        period: bucket,
+        types: ['change'],
+      })
+        .then((result) => {
+          const values = result[config.entity];
+          if (!values) {
+            console.warn(
+              `BAR-CARD: no statistics returned for ${config.entity} (period: ${period}). ` +
+              `The entity likely has no long-term statistics (needs state_class 'total'/'total_increasing'), ` +
+              `or none have been recorded yet for this range.`,
+            );
+            return;
+          }
+          this._historyValues[index] = values.reduce((sum, value) => sum + (value.change ?? 0), 0);
+          this.requestUpdate();
+        })
+        .catch((err) => {
+          // Leave _historyValues[index] as undefined; the bar keeps showing
+          // the "entity not available" state until a future fetch succeeds.
+          console.warn(`BAR-CARD: statistics_during_period failed for ${config.entity} (period: ${period}):`, err);
+        });
+    });
   }
 
   private _showMoreInfo(entityId: string) {
@@ -154,9 +256,17 @@ export class BarCard extends LitElement {
           continue
         }
 
-        // If attribute is defined use attribute value as bar value.
+        // If attribute is defined use attribute value as bar value. A
+        // configured history period takes priority over both. While a
+        // history fetch is still in flight (or the entity genuinely has no
+        // statistics), default to 0 rather than showing the same alarming
+        // "not available" warning used for a missing entity — this state is
+        // expected and usually brief (one WS round-trip), not an error; see
+        // the console warning from _fetchHistoryValues() for diagnosis.
         let entityState;
-        if (config.attribute) {
+        if (config.history?.period) {
+          entityState = this._historyValues[index] ?? 0;
+        } else if (config.attribute) {
           entityState = state.attributes[config.attribute];
         } else {
           entityState = state.state;
@@ -667,6 +777,14 @@ export class BarCard extends LitElement {
   public set hass(value: HomeAssistant | undefined) {
     const oldVal = this._hass;
     this._hass = value;
+    // setConfig() normally runs before hass is first assigned (standard
+    // Lovelace card lifecycle), so the _fetchHistoryValues() call inside it
+    // silently no-ops via its `!this._hass` guard. Retry once here, the
+    // first time hass actually becomes available, or history bars would
+    // stay on "entity not available" forever.
+    if (!oldVal && value) {
+      this._fetchHistoryValues();
+    }
     // Trigger reactive update for 'hass'
     this.requestUpdate('hass', oldVal);
   }

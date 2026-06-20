@@ -19,6 +19,7 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
     entity_row: false,
     entity: '',
     height: '',
+    history: undefined,
     icon: undefined,
     limit_value: false,
     max: '',
@@ -81,6 +82,9 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
     if (this._config.positions && Object.entries(this._config.positions).length === 0) {
       delete this._config.positions;
     }
+    if (this._config.history && Object.entries(this._config.history).length === 0) {
+      delete this._config.history;
+    }
 
     for (const entityConfig of this._configArray) {
       if (entityConfig.animation) {
@@ -91,6 +95,11 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
       if (entityConfig.positions) {
         if (Object.entries(entityConfig.positions).length === 0) {
           delete entityConfig.positions;
+        }
+      }
+      if (entityConfig.history) {
+        if (Object.entries(entityConfig.history).length === 0) {
+          delete entityConfig.history;
         }
       }
     }
@@ -154,6 +163,13 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
       show: false,
     };
 
+    const historyOptions = {
+      icon: 'history',
+      name: 'History',
+      secondary: 'Derive the bar value from entity history instead of live state.',
+      show: false,
+    };
+
     const entityOptions = {
       show: false,
       options: {
@@ -163,6 +179,7 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
         severity: { ...severityOptions },
         actions: { ...actionsOptions },
         animation: { ...animationOptions },
+        history: { ...historyOptions },
       },
     };
 
@@ -192,6 +209,7 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
             card: cardOptions,
             severity: severityOptions,
             animation: animationOptions,
+            history: historyOptions,
           },
         },
       };
@@ -285,6 +303,7 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
                 ${this._createBarElement(index)} ${this._createValueElement(index)}
                 ${this._createPositionsElement(index)} ${this._createSeverityElement(index)}
                 ${this._createAnimationElement(index)} ${this._createActionsElement(index)}
+                ${this._createHistoryElement(index)}
               </div>
             `
           : ''}
@@ -352,7 +371,7 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
                 <div class="card-background">
                   ${this._createCardElement()} ${this._createBarElement(null)} ${this._createValueElement(null)}
                   ${this._createPositionsElement(null)} ${this._createSeverityElement(null)}
-                  ${this._createAnimationElement(null)}
+                  ${this._createAnimationElement(null)} ${this._createHistoryElement(null)}
                 </div>
               `
         : ''
@@ -571,6 +590,81 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
                   </label>
                 </div>
               `
+        : ''}
+      </div>
+    `;
+  }
+
+  private _createHistoryElement(index: number | null): TemplateResult {
+    let options;
+    let config;
+    if (index !== null) {
+      options = this._options.entities.options.entities[index].options.history;
+      config = this._configArray[index];
+    } else {
+      options = this._options.appearance.options.history;
+      config = this._config;
+    }
+    config.history = { ...config.history };
+    return html`
+      <div class="category" id="history">
+        <div
+          class="sub-category"
+          @click=${this._toggleThing}
+          .options=${options}
+          .optionsTarget=${this._options.appearance.options}
+        >
+          <div class="row">
+            <ha-icon .icon=${`mdi:${options.icon}`}></ha-icon>
+            <div class="title">${options.name}</div>
+            <ha-icon .icon=${options.show ? `mdi:chevron-up` : `mdi:chevron-down`} style="margin-left: auto;"></ha-icon>
+          </div>
+          <div class="secondary">${options.secondary}</div>
+        </div>
+        ${options.show
+        ? html`
+              <div class="value">
+                <div>
+                  <label class="field-label"
+                    >Period
+                    <select
+                      .value=${config.history.period ? config.history.period : ''}
+                      @change=${this._valueChanged}
+                      .configAttribute=${'period'}
+                      .configObject=${config.history}
+                      .index=${index}
+                      .ignoreNull=${true}
+                    >
+                      <option value="">-</option>
+                      <option value="today">today</option>
+                      <option value="yesterday">yesterday</option>
+                      <option value="last_7d">last_7d</option>
+                      <option value="last_30d">last_30d</option>
+                      <option value="this_month">this_month</option>
+                      <option value="last_month">last_month</option>
+                      <option value="last_12_months">last_12_months</option>
+                      <option value="this_year">this_year</option>
+                      <option value="last_year">last_year</option>
+                    </select>
+                  </label>
+                  ${config.history.period
+            ? html`
+                        <ha-icon
+                          class="ha-icon-large"
+                          icon="mdi:close"
+                          @click=${this._valueChanged}
+                          .value=${''}
+                          .configAttribute=${'period'}
+                          .configObject=${config.history}
+                        ></ha-icon>
+                      `
+            : ''}
+                  ${index !== null && !config.history.period && this._globalValue('history.period')
+            ? html`<span class="global-hint">(globaal: ${this._globalValue('history.period')})</span>`
+            : ''}
+                </div>
+              </div>
+            `
         : ''}
       </div>
     `;
