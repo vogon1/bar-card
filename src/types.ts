@@ -22,6 +22,7 @@ export interface BarCardConfig {
   name: string
   positions: any
   severity: any
+  sort: string
   stack: string
   tap_action?: ActionConfig
   target: any

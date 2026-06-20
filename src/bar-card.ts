@@ -125,6 +125,19 @@ export class BarCard extends LitElement {
   }
 
   private _createBarArray(): TemplateResult[] {
+    // Determine render order. Without `sort` this is the identity
+    // permutation (YAML/editor order, unchanged). `_configArray` itself is
+    // never reordered, since it's rebuilt from scratch on every setConfig()
+    // and is indexed in parallel with _stateArray/_animationState/_indicatorToggle.
+    const sortedIndices: number[] = this._configArray.map((_, i) => i);
+    if (this._config.sort === 'asc' || this._config.sort === 'desc') {
+      sortedIndices.sort((a, b) => {
+        const diff = this._computeSortPercent(a) - this._computeSortPercent(b);
+        if (diff !== 0) return this._config.sort === 'asc' ? diff : -diff;
+        return a - b;
+      });
+    }
+
     // Create array containing number of bars per row.
     const columnsArray: number[] = [];
     for (let i = 0; i < this._configArray.length; i++) {
@@ -142,7 +155,8 @@ export class BarCard extends LitElement {
       // For every number in columnsArray add bars.
       const currentRowArray: TemplateResult[] = [];
       for (let x = 0; x < columnsArray[i]; x++) {
-        const index = i * this._config.columns + x;
+        const visualSlot = i * this._config.columns + x;
+        const index = sortedIndices[visualSlot];
         const config = this._configArray[index];
         const state = this._hass!.states[config.entity];
         if (!state) {
@@ -632,6 +646,31 @@ export class BarCard extends LitElement {
       default:
         return (100 * (numberValue - min)) / (max - min);
     }
+  }
+
+  // Fill percentage used to sort bars, computed the same way as the main
+  // render loop derives a bar's percentage (entity lookup, attribute,
+  // max/min resolution) but ignoring `complementary` — that only affects
+  // the displayed value/text, never the actual bar fill that `sort` orders by.
+  private _computeSortPercent(index: number): number {
+    const config = this._configArray[index];
+    const state = this._hass!.states[config.entity];
+    if (!state) return 0;
+
+    const entityState = config.attribute ? state.attributes[config.attribute] : state.state;
+
+    let max = getMaxMinBasedOnType(this._hass, config.max);
+    let min = getMaxMinBasedOnType(this._hass, config.min);
+    if (max <= min) {
+      if (max === 0 && min === 0) {
+        min = 0;
+        max = 100;
+      } else {
+        max = min + Math.max(1, Math.abs(min) * 0.1);
+      }
+    }
+
+    return this._computePercent(entityState, index, max, min);
   }
 
   // Always returns a pixel value; never throws or NaNs

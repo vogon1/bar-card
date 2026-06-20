@@ -26,6 +26,7 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
     name: '',
     positions: undefined,
     severity: undefined,
+    sort: '',
     stack: '',
     target: undefined,
     title: '',
@@ -807,6 +808,19 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
                     >Entity Row</ha-switch
                   >
                 </div>
+                <label class="field-label"
+                  >Sort
+                  <select
+                    .value=${config.sort ? config.sort : ''}
+                    @change=${this._valueChanged}
+                    .configObject=${config}
+                    .configAttribute=${'sort'}
+                  >
+                    <option value="">-</option>
+                    <option value="asc">asc</option>
+                    <option value="desc">desc</option>
+                  </select>
+                </label>
               </div>
             `
         : ''}

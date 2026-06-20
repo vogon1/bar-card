@@ -52,6 +52,7 @@ If my version works well, I am willing to maintian this for HACS.
 | name | string | none | Defines custom entity name.
 | positions | object | none | Defines the positions of the card elements. See [Positions Options](#positions-options).
 | severity | object | none | A list of severity values. See [Severity Options](#severity-options).
+| sort | string | none | Sorts bars by fill percentage (`asc` or `desc`). Leave unset to preserve the order entities are listed in.
 | stack | string | none | Set to `horizontal` to lay entities out in a single row instead of stacked columns. *(YAML only, not yet available in the visual editor.)*
 | tap_action | object | none | See [home assistant documentation](https://www.home-assistant.io/lovelace/actions/). *(YAML only, not yet available in the visual editor.)*
 | target | number | none | Defines and enables target marker value.
