@@ -40,6 +40,9 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
   private _dragStartClientY = 0;
   private _dragLastDeltaY = 0;
   private _dragRowOriginalRects: DOMRect[] = [];
+  private _bulkAddDeviceClass = '';
+  private _bulkAddMatches: string[] | null = null;
+  private _bulkAddSelected: Set<string> | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _configArray: any[] = [];
   private _entityOptionsArray: object[] = [];
@@ -312,6 +315,53 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
         ${options.show
         ? html`
               <div class="card-background" style="max-height: 400px; overflow: auto;">
+                <div class="sub-category" style="display: flex; flex-direction: row; align-items: center; flex-wrap: wrap;">
+                  <label class="field-label"
+                    >Bulk add by device class
+                    <select .value=${this._bulkAddDeviceClass} @change=${this._bulkAddDeviceClassChanged}>
+                      <option value="">-</option>
+                      ${this._getAvailableDeviceClasses().map((dc) => html`<option value=${dc}>${dc}</option>`)}
+                    </select>
+                  </label>
+                </div>
+                ${this._bulkAddMatches !== null
+                  ? html`
+                      <div class="sub-category">
+                        <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+                          <div class="secondary">
+                            ${this._bulkAddMatches.length === 0
+                              ? 'No matching entities found (or all already added).'
+                              : `${this._bulkAddSelected?.size ?? 0} of ${this._bulkAddMatches.length} selected.`}
+                          </div>
+                          <div style="display: flex; flex-direction: row;">
+                            <ha-icon class="ha-icon-large" icon="mdi:close" @click=${this._cancelBulkAdd}></ha-icon>
+                            ${this._bulkAddSelected && this._bulkAddSelected.size > 0
+                              ? html`<ha-icon class="ha-icon-large" icon="mdi:check-circle" @click=${this._confirmBulkAdd}></ha-icon>`
+                              : ''}
+                          </div>
+                        </div>
+                        ${this._bulkAddMatches.length > 0
+                          ? html`
+                              <div class="card-background" style="max-height: 200px; overflow: auto;">
+                                ${this._bulkAddMatches.map(
+                                  (id) => html`
+                                    <div style="display: flex; flex-direction: row; align-items: center;">
+                                      <input
+                                        type="checkbox"
+                                        .checked=${this._bulkAddSelected!.has(id)}
+                                        .entityId=${id}
+                                        @change=${this._bulkAddToggleSelected}
+                                      />
+                                      <span>${this.hass!.states[id]?.attributes.friendly_name ?? id} <span class="global-hint">(${id})</span></span>
+                                    </div>
+                                  `,
+                                )}
+                              </div>
+                            `
+                          : ''}
+                      </div>
+                    `
+                  : ''}
                 ${this._createEntitiesValues()}
                 <div class="sub-category" style="display: flex; flex-direction: column; align-items: flex-end;">
                   <ha-icon
@@ -1081,6 +1131,104 @@ export class BarCardEditor extends LitElement implements LovelaceCardEditor {
     newArray.push(newObject);
     this._config.entities = newArray;
     fireEvent(this, 'config-changed', { config: this._config });
+  }
+
+  // device_class is shared between sensor and binary_sensor (e.g. "battery",
+  // "moisture", "gas" all exist as both) — bar-card needs a numeric value to
+  // fill a bar, so binary_sensor-style on/off states must be excluded here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _hasNumericState(state: any): boolean {
+    return !isNaN(Number(state.state));
+  }
+
+  private _getAvailableDeviceClasses(): string[] {
+    if (!this.hass) {
+      return [];
+    }
+    const deviceClasses = new Set<string>();
+    for (const state of Object.values(this.hass.states)) {
+      if (state.attributes.device_class && this._hasNumericState(state)) {
+        deviceClasses.add(state.attributes.device_class);
+      }
+    }
+    return Array.from(deviceClasses).sort();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _bulkAddDeviceClassChanged(event: any): void {
+    this._bulkAddDeviceClass = event.target.value;
+    if (!this._bulkAddDeviceClass) {
+      // Cleared back to "-" — drop any stale preview, nothing to search for.
+      this._bulkAddMatches = null;
+      this._bulkAddSelected = null;
+      this.requestUpdate();
+      return;
+    }
+    this._findBulkAddMatches();
+  }
+
+  private _findBulkAddMatches(): void {
+    if (!this.hass || !this._bulkAddDeviceClass) {
+      return;
+    }
+    // createEditorConfigArray() always normalizes string entries to
+    // { entity: ... } objects (see helpers.ts), so .entity is always safe.
+    const existingIds = new Set(this._configArray.map((config) => config.entity));
+    const matches: string[] = [];
+    for (const state of Object.values(this.hass.states)) {
+      if (
+        state.attributes.device_class === this._bulkAddDeviceClass &&
+        this._hasNumericState(state) &&
+        !existingIds.has(state.entity_id)
+      ) {
+        matches.push(state.entity_id);
+      }
+    }
+    this._bulkAddMatches = matches.sort();
+    // Everything starts selected — unchecking a row is how the user excludes it.
+    this._bulkAddSelected = new Set(this._bulkAddMatches);
+    this.requestUpdate();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _bulkAddToggleSelected(event: any): void {
+    if (!this._bulkAddSelected) {
+      return;
+    }
+    if (event.target.checked) {
+      this._bulkAddSelected.add(event.target.entityId);
+    } else {
+      this._bulkAddSelected.delete(event.target.entityId);
+    }
+    this.requestUpdate();
+  }
+
+  private _confirmBulkAdd(): void {
+    if (!this._config || !this.hass || !this._bulkAddSelected || this._bulkAddSelected.size === 0) {
+      return;
+    }
+    // Mirror of _addEntity() above, but for many entities at once: build the
+    // full array and fire config-changed exactly ONCE. Calling _addEntity()
+    // in a loop would fire it once per match — this project has already hit
+    // a real infinite loop from firing config-changed too eagerly (see the
+    // comment in setConfig() above), so this single-fire pattern is load-bearing.
+    const newArray = this._configArray.slice();
+    for (const entityId of this._bulkAddSelected) {
+      newArray.push({ entity: entityId });
+    }
+    this._config.entities = newArray;
+    fireEvent(this, 'config-changed', { config: this._config });
+    // Deliberately leave _bulkAddDeviceClass as-is: the user likely wants to
+    // try another class next, and re-searching the same class now correctly
+    // reports 0 matches since they were just added.
+    this._bulkAddMatches = null;
+    this._bulkAddSelected = null;
+  }
+
+  private _cancelBulkAdd(): void {
+    this._bulkAddMatches = null;
+    this._bulkAddSelected = null;
+    this.requestUpdate();
   }
 
   private _getEntityRowElements(): HTMLElement[] {
