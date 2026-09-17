@@ -1,6 +1,6 @@
 {
   "name": "bar-card",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Lovelace bar-card, forked of 'custom_cards/bar-card'",
   "keywords": [
     "home-assistant",
@@ -11,8 +11,8 @@
     "custom-cards"
   ],
   "module": "bar-card.js",
-  "repository": "git@github.com:spacerokk/bar-card.git",
-  "author": "Spacerokk (github.com/spacerokk)",
+  "repository": "https://github.com/vogon1/bar-card.git",
+  "author": "Sietse Visser (github.com/vogon1)",
   "license": "MIT",
   "scripts": {
     "start": "rollup -c --watch",

@@ -1,8 +1,6 @@
 # Bar Card
 
-This is a fork of a fork: [custom-cards/bar-card](https://github.com/custom-cards/bar-card) was forked by [spacerokk/bar-card](https://github.com/spacerokk/bar-card), and this repository is a fork of that.
-
-If my version works well, I am willing to maintian this for HACS.
+This is the actively maintained continuation of the original [custom-cards/bar-card](https://github.com/custom-cards/bar-card), which is no longer maintained. It builds on [spacerokk/bar-card](https://github.com/spacerokk/bar-card), itself a fork of the original, and stays compatible with existing `custom:bar-card` configurations.
 
 ---
 
@@ -15,17 +13,17 @@ If my version works well, I am willing to maintian this for HACS.
 
 ## [Examples](#examples-1)
 
-![Default](https://github.com/mreysei/bar-card/blob/master/images/default.gif?raw=true)
+![Default](https://github.com/vogon1/bar-card/blob/master/images/default.gif?raw=true)
 
-![Severity](https://github.com/mreysei/bar-card/blob/master/images/severity.gif?raw=true)
+![Severity](https://github.com/vogon1/bar-card/blob/master/images/severity.gif?raw=true)
 
-![Entity Row](https://github.com/mreysei/bar-card/blob/master/images/entity_row.gif?raw=true)
+![Entity Row](https://github.com/vogon1/bar-card/blob/master/images/entity_row.gif?raw=true)
 
-![Direction](https://github.com/mreysei/bar-card/blob/master/images/direction.gif?raw=true)
+![Direction](https://github.com/vogon1/bar-card/blob/master/images/direction.gif?raw=true)
 
-![Old Layout](https://github.com/mreysei/bar-card/blob/master/images/old_layout.gif?raw=true)
+![Old Layout](https://github.com/vogon1/bar-card/blob/master/images/old_layout.gif?raw=true)
 
-![Custom CSS](https://github.com/mreysei/bar-card/blob/master/images/customcss.gif?raw=true)
+![Custom CSS](https://github.com/vogon1/bar-card/blob/master/images/customcss.gif?raw=true)
 
 ## Options
 
@@ -121,17 +119,27 @@ See [example](#200-default-layout-requires-card-mod). (**requires** [card-mod](h
 
 ## Installation
 
-This fork is not (yet) distributed via [HACS](https://github.com/hacs/integration). I'm offering it as a manual install for now; if it proves to work well, I plan to submit it to HACS.
+### HACS (recommended)
 
-1. Download `bar-card.js` from the [latest release](../../releases/latest) of this repository.
+1. Open [HACS](https://hacs.xyz) in Home Assistant.
+2. Search for **Bar Card** and download it.
+3. Refresh your browser.
+
+HACS adds the dashboard resource for you.
+
+Until Bar Card is available in the default HACS store, add this repository as a [custom repository](https://hacs.xyz/docs/faq/custom_repositories/): open the three-dot menu in HACS → **Custom repositories**, enter `https://github.com/vogon1/bar-card` and choose the type **Dashboard**.
+
+### Manual
+
+1. Download `bar-card.js` from the [latest release](https://github.com/vogon1/bar-card/releases/latest) of this repository.
 2. Copy it into your Home Assistant `config/www/` folder.
 3. Add it as a Lovelace resource, loaded as a `module` (**required**), either via the UI or YAML. Append the version number to the URL as a `?v=` query parameter — browsers cache JavaScript modules aggressively, so this must be bumped on every release you install, or Home Assistant may keep serving the old cached version.
 
-   - **UI:** go to **Settings** → **Dashboards**, open the three-dot menu in the top right → **Resources** → **Add Resource**. Set the URL to `/local/bar-card.js?v=5.0.0` and the resource type to **JavaScript Module**.
+   - **UI:** go to **Settings** → **Dashboards**, open the three-dot menu in the top right → **Resources** → **Add Resource**. Set the URL to `/local/bar-card.js?v=5.0.1` and the resource type to **JavaScript Module**.
    - **YAML:**
 
      ```yaml
-     - url: /local/bar-card.js?v=5.0.0
+     - url: /local/bar-card.js?v=5.0.1
        type: module
      ```
 
@@ -139,7 +147,7 @@ This fork is not (yet) distributed via [HACS](https://github.com/hacs/integratio
 
 ### Default
 
-![Default](https://github.com/custom-cards/bar-card/blob/master/images/default.gif?raw=true)
+![Default](https://github.com/vogon1/bar-card/blob/master/images/default.gif?raw=true)
 
 ```yaml
 entity: sensor.example
@@ -149,7 +157,7 @@ type: 'custom:bar-card'
 
 ### Severity
 
-![Severity](https://github.com/custom-cards/bar-card/blob/master/images/severity.gif?raw=true)
+![Severity](https://github.com/vogon1/bar-card/blob/master/images/severity.gif?raw=true)
 
 ```yaml
 entity: sensor.example
@@ -169,7 +177,7 @@ severity:
 
 ### Entity Row
 
-![Entity Row](https://github.com/custom-cards/bar-card/blob/master/images/entity_row.gif?raw=true)
+![Entity Row](https://github.com/vogon1/bar-card/blob/master/images/entity_row.gif?raw=true)
 
 ```yaml
 entities:
@@ -188,7 +196,7 @@ type: entities
 
 ### Direction
 
-![Direction](https://github.com/custom-cards/bar-card/blob/master/images/direction.gif?raw=true)
+![Direction](https://github.com/vogon1/bar-card/blob/master/images/direction.gif?raw=true)
 
 ```yaml
 entities:
@@ -204,7 +212,7 @@ type: 'custom:bar-card'
 
 ### 2.0.0 Default Layout (**requires** [card-mod](https://github.com/thomasloven/lovelace-card-mod))
 
-![Old Layout](https://github.com/custom-cards/bar-card/blob/master/images/old_layout.gif?raw=true)
+![Old Layout](https://github.com/vogon1/bar-card/blob/master/images/old_layout.gif?raw=true)
 
 ```yaml
 entity: sensor.example
@@ -226,7 +234,7 @@ style: |-
 
 ### Custom CSS Layout (**requires** [card-mod](https://github.com/thomasloven/lovelace-card-mod))
 
-![Custom CSS](https://github.com/custom-cards/bar-card/blob/master/images/customcss.gif?raw=true)
+![Custom CSS](https://github.com/vogon1/bar-card/blob/master/images/customcss.gif?raw=true)
 
 ```yaml
 entities:

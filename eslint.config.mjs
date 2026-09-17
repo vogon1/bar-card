@@ -8,6 +8,9 @@ const compat = new FlatCompat({
 
 export default [
   {
+    ignores: ["dist/**"],
+  },
+  {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       ecmaVersion: 2021,
